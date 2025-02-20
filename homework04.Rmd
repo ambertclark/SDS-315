@@ -1,0 +1,189 @@
+---
+title: "Homework 04"
+author: "Amber Clark - SDS 315 UT Austin"
+output:
+  html_document:
+      toc: true
+      toc_float: true
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+```{r echo=FALSE, message=FALSE}
+library(ggplot2)
+library(mosaic)
+library(tibble)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(dplyr)
+```
+
+# **1. Question One**
+```{r echo=FALSE}
+# Given data
+total_trades <- 2021
+flagged_trades <- 70
+baseline_flag_rate <- 0.024
+# Monte carlo simulations
+sim_trades <- do(100000) * nflip(n=2021, prob=0.024)
+# Histogram
+ggplot(sim_trades) +
+  geom_histogram(aes(x=nflip), binwidth=1) + 
+  labs(title="Distrtibution of Simulated Flagged Trades", x="Number of Flagged Trades", y="Probability Density")
+
+# Calculate p-value
+p_value1 <- sum(sim_trades >= 70) / 100000
+```
+
+
+
+1. Null Hypothesis:
+The probability that a trade by an Iron Bank employee is flagged by the SEC is the baseline rate of 2.4% and any difference is due to chance.
+2. The test statistic is the amount of flagged trades which is modeled as a binomial randowm variable under the null hypothesis.
+3. The histogram above shows the probability distribution, assuming the null hypothesis is true.
+4. The p-value is approximately 0.002.
+5. Since the p-value is very small (0.002), we reject the null hypothesis because this makes it implausible observing 70 flagged trades is due to chance. This provides strong evidence against the null hypothesis because Iron Bank employees are being flagged at a higher than expected rate.
+
+
+
+# **2. Question Two**
+```{r echo=FALSE}
+# Given data
+total_inspections <- 50
+observed_violations <- 8
+baseline_violation_rate <- 0.03
+# Monte Carlo Simulations
+sim_violations <- do(100000) * nflip(n=50, prob=0.03)
+# Histogram
+ggplot(sim_violations) + geom_histogram(aes(x=nflip), binwidth=1) + 
+  labs(title="Simulated Distribution of Violations", x="Health Code Violations", y="Probability Density")
+# Calculate p-value
+p_value2 <- sum(sim_violations >= observed_violations) / 100000
+
+```
+
+
+
+1. Null Hypothesis:
+The probability that health inspections at a Gourmet Bites result in same health code violations baseline rate of 3% and any difference is due to chance.
+2. The test statistic is the health code violations which is modeled as a binomial random variable under the null hypothesis.
+3.The histogram above shows the simulated distributions assuming the null hypothesis is true.
+4.The p-value is approximately 0.00014.
+5. Since the p-value is very small (0.00014), we reject the null hypothesis because this makes it implausible observing 50 health violation codes due to chance. This provides strong evidence against the null hypothesis because Gourmet Bites have a significantly higher violation rate than the baseline of 3%.
+
+# **3. Question Three**
+```{r echo=FALSE}
+# Given data
+expected_proportions <- c(.30, .25, .20, .15, .10)
+total_jurors <- 240
+observed_counts <- c(85, 56, 59, 27, 13)
+# calculate expected counts
+expected_counts <- total_jurors * expected_proportions
+
+# chi square goodness of fit test
+chi_test <- chisq.test(x = observed_counts, p = expected_proportions, rescale.p = TRUE)
+
+# kable table of expected/observed counts
+jury_data <- tibble(
+  Group = c("Group 1", "Group 2", "Group 3", "Group 4", "Group 4"),
+  `Expected Count` = c(72, 60, 48, 36, 24),  # calculated by multiplying 240 by the expected proportions
+  `Observed Count` = c(85, 56, 59, 27, 13)
+)
+
+jury_data %>%
+  kable(format = "markdown", caption = "Expected v.s. Observed Jury Counts") %>% kable_styling(full_width = FALSE)
+```
+
+1. Null Hypothesis:
+The racial distribution of empaneled jurors matches the distribution of the county's jury population and any difference is due to chance.
+2. Test Statistic:
+I used a chi-square goodness of fit test to compare the observed/expected counts. This yielded x^2 = 12.43.
+3. The table shown above shows the expected and observed counts of the county's eligible jury population.
+4. The p-value is approximately 0.014.
+5. Since the p-value (0.014) is smaller than the level of 0.05, we reject the null hypothesis. This indicates that the observed jury distribution is significantly different from the expected counts from the county's jury population. These results could be due to systemic bias in jury selection or another explanation is attorneys excluding certain ethnic groups through peremptory challenges because certain judges may be more lenient in overseeing this process. A deeper investigation involves applying this jury selection process across multiple counties and judges to determine whether it is due to chance or not.
+
+
+# **4. Question Four**
+
+# ***Part A***
+```{r echo=FALSE}
+brown_sentences <- readLines("brown_sentences.txt")
+
+letter_frequencies <- read.csv("letter_frequencies.csv")
+colnames(letter_frequencies) <- c("Letter", "Probability")
+
+# Letter frequencies must sum to 1
+letter_frequencies$Probability <- letter_frequencies$Probability / sum(letter_frequencies$Probability)
+
+# Function to calculate chi-squared in a sentence
+calculate_chi_squared <- function(sentence, freq_table){
+# Preproccess sentence
+  clean_sentence <- gsub("[^A-Za-z]", "", sentence)
+  clean_sentence <- toupper(clean_sentence)
+
+# Count letters
+observed_counts <- table(factor(strsplit(clean_sentence, "")[[1]], levels = freq_table$Letter))
+
+# Expected counts based on total letters
+total_letters <- sum(observed_counts)
+expected_counts <- total_letters * freq_table$Probability
+
+# Calulate chi-square statistic
+chi_square_stat <- sum((observed_counts - expected_counts)^2 / expected_counts, na.rm=TRUE)
+
+return(chi_square_stat)
+}
+# Calculate chi-squared for all brown sentences
+chi_sq_null_dist <- sapply(brown_sentences, calculate_chi_squared, freq_table = letter_frequencies)
+
+# Create tibble
+chi_sq_null_dist <- tibble(chi_squared = chi_sq_null_dist)
+
+# Histogram of chi squared null distribution
+ggplot(chi_sq_null_dist) +
+  geom_histogram(aes(x = chi_squared), bins = 30) + labs(title = "Null Distribution of Chi-Squared Statistic", x = "Chi-Squared Value", y = "Frequency")
+
+
+```
+
+
+# ***Part B***
+```{r echo=FALSE}
+# Store ten sentences in R vector
+sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+# Calculate chi-squares for each sentence
+chi_sq_values <- sapply(sentences, calculate_chi_squared, freq_table = letter_frequencies)
+
+# Calculate p-value for each sentence
+p_values <- sapply(chi_sq_values, function(x) mean(chi_sq_null_dist >= x))
+
+# Create kable table
+p_table <- tibble(
+  Sentence = 1:10,
+  Chi_Squared = round(chi_sq_values, 3),
+  P_Value = round(p_values, 3)
+)
+
+kable(p_table, format = "markdown", caption = "Chi-Squared P-values for Each Sentence")
+
+
+```
+
+
+The sentence that is produced by an LLM is sentence 6 because the chi-squared value is much higher than the other sentences and the p-value of 0.009 suggests that it is significantly different from expected English letter distributions. 
