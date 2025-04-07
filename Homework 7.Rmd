@@ -1,0 +1,251 @@
+---
+title: "Homework 7"
+author: "Amber Clark - SDS 315 UT Austin"
+output:
+  html_document:
+      toc: true
+      toc_float: true
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+
+[Github Link](https://github.com/ambertclark/SDS-315.git) 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(MatchIt)
+library(dplyr)
+```
+
+# **1. Question One**
+
+A).
+```{r message=FALSE, include=FALSE}
+armfold <- read.csv("armfold.csv")
+
+# count by gender
+table(armfold$Sex)
+
+# sample proportions
+prop_male <- mean(armfold$LonR_fold[armfold$Sex == "Male"])
+prop_female <- mean(armfold$LonR_fold[armfold$Sex == "Female"])
+
+prop_male
+prop_female
+
+```
+
+There is 111 females and 106 males in the data set. The proportion of males who folded their left arm on top is about 47.17% and the proportion of females who folded their left arm on top is about 42.34%.
+
+B).
+
+```{r message=FALSE, include=FALSE}
+# observed differnce in proportions
+diff_prop <- prop_male - prop_female
+
+diff_prop
+```
+
+The observed difference in proportions between the two groups is 0.0483.
+
+C).
+
+```{r message=FALSE, include=FALSE}
+# manual calcuations
+n_male <- sum(armfold$Sex == "Male")
+n_female <- sum(armfold$Sex == "Female")
+
+se_diff <- sqrt((prop_male * (1 - prop_male)) / n_male + (prop_female * (1 - prop_female)) / n_female)
+
+z_star <- 1.96
+
+ci_lower <- diff_prop - z_star * se_diff
+ci_upper <- diff_prop + z_star * se_diff
+
+c(ci_lower, ci_upper)
+
+# R's built in functions
+table_arm <- table(armfold$Sex, armfold$LonR_fold)
+
+left_counts <- c(table_arm["Male", "1"], table_arm["Female", "1"])
+n_obs <- c(n_male, n_female)
+
+prop.test(left_counts, n_obs, correct = FALSE)
+```
+
+1. The formula for standard error for the difference in proportions is:
+
+$S.E.=\sqrt{\frac{p_1(1-p_1)}{n_1}+\frac{p_2(1-p_2)}{n_2}}$
+
+2.
+I used:
+p1 = 0.4717, n1= 106
+p2 = 0.4234, n2 = 111
+
+3. I used a z* value of 1.96 for a 95% confidence interval, which yielded a result of (-0.084, 0.180)
+
+D). 
+
+If we were to repeat this study with other random samples, then we would expect that 95% of the resulting confidence intervals would contain the true difference between the population proportions of males and females who folded their left arm on top.
+
+E). 
+
+
+The standard error that we calcuated represents the standard deviation of the sampling distribution.
+
+It measures the difference in proportions and how much we expect the difference in sample proportions vary from each sampling due to random chance. For this question, the standard error of about 0.0675 means that if we repeated this experiment with new samples, we expect the difference between female and male with left arm on top proportions to vary about 6.75% due to variability in the sample.
+
+F).
+
+The sampling distribution refers to the distribution of the difference in sampling proportions, if we repeated the experiment many times with more random sampling of students in the population. The variable that varies is the sample proportions of female and males with left arm folded on top. The variable that stays fixed is the true population of proportions. 
+
+G).
+
+The Central Limit Theorem justifies using a normal distribution to approximate the sampling distribution of the differnce in sample proportions because it states that when sample sizes are large enough (n>=30), the distribution will be approximately normal.
+
+H).
+
+If the 95% confidence interval is (-0.01, 0.30), I would say that while 0 is in the interval, we can't say that there is no difference between sex difference in arm folding, but more data and research could clarify the difference.
+
+I).
+
+Yes, if we repeated this study many times, the confidence intervals would change across different random samples because the sample proportions would be slightly difference due to random variation. If we drew many samples and constructed a 95% confidence interval, then we expect 95% of those intervals to contain the true population difference and 5% to not include the true difference, just by chance.
+
+# **1. Question Two**
+
+A).
+```{r message=FALSE, include=FALSE}
+turnout <- read.csv("turnout.csv")
+
+# proportions of voters in 1998 who received/didn't received a call
+prop_gotv_1 <- mean(turnout$voted1998[turnout$GOTV_call == 1])
+
+prop_gotv_0 <- mean(turnout$voted1998[turnout$GOTV_call == 0])
+
+# difference
+diff2 <- prop_gotv_1 - prop_gotv_0
+
+# standard error calculations
+
+n1 <- sum(turnout$GOTV_call== 1)
+n0 <- sum(turnout$GOTV_call== 0)
+
+se <- sqrt((prop_gotv_1 * (1 - prop_gotv_1)) / n1 + (prop_gotv_0 * (1 - prop_gotv_0)) / n0)
+
+# confidence interval
+z_star2 <- 1.96
+
+lower2 <- diff2 - z_star2 * se
+upper2 <- diff2 + z_star2 * se
+
+c(lower2, upper2)
+
+
+```
+
+1). The proportion of those who received a GOTV call who voted in 1998 is 64.8%.
+
+2). The sample proportion of those who voted in 1998 and didn't receive a call is 44.4%.
+
+3). The difference in proportion about 20.35.
+
+4). The 95% confidence interval for the difference is (.143, 0.264), meaning that I am 95% confident that receiving a GOTV call increased in voting rates between around 14.3 and 26.4.
+
+
+
+B).
+```{r echo=FALSE, message = FALSE, results = 'asis'}
+# group by means
+turnout %>%
+  group_by(GOTV_call) %>%
+  summarise(across(c(voted1996, AGE, MAJORPTY), mean)) %>%
+  knitr::kable()
+
+# ci and se
+confounder_ci <- function(var) {
+  group1 <- turnout[turnout$GOTV_call == 1, var]
+  group0 <- turnout[turnout$GOTV_call == 0, var]
+  mean1 <- mean(group1)
+  mean0 <- mean(group0)
+  n1 <- length(group1)
+  n0 <- length(group0)
+  se <- sqrt(var(group1) / n1 + var(group0) / n0)
+  diff <- mean1 - mean0
+  lower <- diff - 1.96 * se
+  upper <- diff + 1.96 * se
+  return(data.frame(
+    Variable = var,
+    Difference = round(diff, 4),
+    CI_Lower = round(lower, 4),
+    CI_Upper = round(upper, 4)
+  ))
+}
+
+# kable table
+rbind(
+  confounder_ci("voted1996"),
+  confounder_ci("AGE"),
+  confounder_ci("MAJORPTY")
+) %>%
+  knitr::kable()
+
+```
+
+
+
+Table 1: shows means by GOTV_call group
+Table 2: shows difference and 95% confidence interval for confounders
+
+
+
+C).
+```{r echo=FALSE, result= 'asis', message = FALSE}
+# matched data
+matched <- matchit(GOTV_call ~ voted1996 + AGE + MAJORPTY, data = turnout, method = "nearest", ratio = 5)
+matched_data <- match.data(matched)
+
+matched_data %>%
+  group_by(GOTV_call) %>%
+  summarise(across(c(voted1996, AGE, MAJORPTY), mean)) %>%
+  knitr::kable()
+
+# proportions
+prop_m_yes <- mean(matched_data$voted1998[matched_data$GOTV_call == 1])
+prop_m_no <- mean(matched_data$voted1998[matched_data$GOTV_call == 0])
+n1_m <- sum(matched_data$GOTV_call == 1)
+n2_m <- sum(matched_data$GOTV_call == 0)
+se_m <- sqrt((prop_m_yes*(1-prop_m_yes))/n1_m + (prop_m_no*(1-prop_m_no))/n2_m)
+diff_m <- prop_m_yes - prop_m_no
+ci_l_m <- diff_m - 1.96 * se_m
+ci_u_m <- diff_m + 1.96 * se_m
+# kable table
+knitr::kable(data.frame(
+  Group = c("GOTV Call = 1", "GOTV Call = 0"),
+  `Voted in 1998 (%)` = round(100 * c(prop_m_yes, prop_m_no), 2)
+))
+
+# ci
+diff_m <- round(100 * diff_m, 2)
+ci_l_m <- round(100 * ci_l_m, 2)
+ci_u_m <- round(100 * ci_u_m, 2)
+
+# table
+results_table <- data.frame(
+  Estimate = paste0(diff_m, " %"),
+  CI = paste0(ci_l_m, " % to ", ci_u_m, " %")
+)
+
+# kable table
+knitr::kable(results_table)
+```
+
+Table 1: Means by GOTV_call in matched data
+Table 2: Voter turnout in 1998 by GOTV_Call
+
+
+
+After adjusting for the confounding variables, I conclude that the effect of receiving a GOTV call, is statistically significant using a 95% confidence interval. GOTV calls increases voter turnout rates by around 7.9 percentage points.
