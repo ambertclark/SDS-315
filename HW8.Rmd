@@ -1,0 +1,174 @@
+---
+title: "Homework 8"
+author: "Amber Clark - SDS 315 UT Austin"
+output:
+  html_document:
+      toc: true
+      toc_float: true
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+
+
+[Github Link](https://github.com/ambertclark/SDS-315.git) 
+
+```{r message=FALSE, echo=FALSE, warning=FALSE}
+library(tidyverse)
+library(mosaic)
+library(ggplot2)
+```
+
+# **1. Question One**
+```{r message=FALSE, echo=FALSE, warning=FALSE}
+creatinine <- read.csv("creatinine.csv")
+# linear model for creatinine data
+model <- lm(creatclear ~ age, data = creatinine)
+
+# A) predict creatinine clearance for 55 year old
+pred_55 <- predict(model, newdata = data.frame(age = 55))
+
+# B) How does creatinine rate change with age?
+coef_age <- coef(model)["age"]
+
+# C) Whose creatinine rate is healthier for their age?
+
+pred_40 <- predict(model, newdata = data.frame(age = 40))
+pred_60 <- predict(model, newdata = data.frame(age = 60))
+
+
+```
+
+A). The creatinine clearance rate that we should expect for a 55-year-old is 113.72 mL/minute. I determined this by inputting the age 55 into the linear regression equation: 
+
+creatclear = 147.81 - 0.6198 x age.
+
+B). The coefficient for the linear regression model is -0.619159 meaning that as age increases, the creatinine clearance rate is expected to decrease by -0.62 mL/min on average. I determined this by interpreting the coefficient of the linear regression model which is -0.619159.
+
+C). The residual for a 40-year-old with a clearance of 135 is approximately +11.98 and the residual for a 60-year-old with a clearance of 112 is approximately +1.38, meaning that the 40-year old is healthier for their age because their creatinine clearance is about 11.98 mL/min above expected, while the 60-year-old is only about 1.38 mL/min above the expected. I determined this by finding the residuals (actual - expected) and subtracting the given actual creatinine clearance (135 and 112) by the creatinine clearance predicted by plugging in the ages in the model (123.02 and 110.62).
+
+For 40-year-old
+Expected = 147.81 - 0.6198 x 40 = 123.02
+Residual = 135 - 123.02 = +11.98
+
+For 60-year-old
+Expected = 147.81 - 0.6198 x 60 = 110.62
+Residual = 112 - 110.62 = +1.38
+
+
+# **2. Question Two**
+```{r message=FALSE, echo=FALSE}
+
+covid <- read.csv("covid.csv")
+
+# fit linear model to 'deaths' and 'days_since_first_death'
+italy <- covid %>% filter(country == "Italy", deaths > 0)
+spain <- covid %>% filter(country == "Spain", deaths > 0)
+
+# 1). estimate for italy
+model_italy <- lm(log(deaths) ~ days_since_first_death, data = italy)
+
+
+# finding growth rate and doubling time for italy
+
+growth_italy <- coef(model_italy)[2]
+
+doubling_italy <- log(2) / growth_italy
+
+
+# bootstrapping growth rate and doubling time for italy
+
+boot_italy <- do(1000) * {
+  sample <- resample(italy)
+  model <- lm(log(deaths) ~ days_since_first_death, data = sample)
+  growth <- coef(model)[2]
+  tibble(
+    growth = growth,
+    doubling = log(2) / growth
+    
+  )
+}
+
+# 95% CI for growth rate and doubling time for italy
+CI_italy_growth <- quantile(boot_italy$growth, c(0.025, 0.975))
+CI_italy_doubling <- quantile(boot_italy$doubling, c(0.025, 0.975))
+
+# 2). estimate for spain
+model_spain <- lm(log(deaths) ~ days_since_first_death, data = spain)
+
+# finding growth rate and doubling time for spain
+
+growth_spain <- coef(model_spain)[2]
+doubling_spain <- log(2) / growth_spain
+
+# bootstrapping growth rate and doubling time for spain
+
+boot_spain <- do(1000) * {
+  sample <- resample(spain)
+  model <- lm(log(deaths) ~ days_since_first_death, data = sample)
+  growth <- coef(model)[2]
+  tibble(
+    growth = growth,
+    doubling = log(2) / growth
+  )
+}
+
+# 95% CI for growth rate and doubling time for spain
+
+CI_spain_growth <- quantile(boot_spain$growth, c(0.025, 0.975))
+CI_spain_doubling <- quantile(boot_spain$doubling, c(0.025, 0.975))
+
+# line graph
+
+ggplot(covid, aes(x = days_since_first_death, y = deaths, color = country)) +
+  geom_line(size = 1.2) +
+  labs(
+    title = "Daily COVID Deaths",
+    x = "Days Since First Death",
+    y = "Daily Reported Deaths"
+  ) + theme_minimal() + scale_color_manual(values = c("Italy" = "pink", "Spain" = "skyblue"))
+```
+
+1). An estimated growth rate and doubling time with 95% bootstrapped confidence intervals for Italy is 0.183 (0.158, 0.209) and 3.8 (3.3, 4.4) respectively.
+
+2). An estimated growth rate and doubling time with 95% bootstrapped confidence intervals for Spain is 0.276 (0.234, 0.317) and 2.5 (2.2, 3.0) respectively.
+
+3). The line graph above shows the reported daily deaths over time.
+
+# **3. Question Three**
+
+```{r message=FALSE, echo=FALSE}
+milk <- read.csv("milk.csv")
+
+# removing rows with 0 to avoid log(0)
+milk <- milk %>% filter(sales > 0)
+
+# create variables changed to log
+milk <- milk %>%
+  mutate(log_price = log(price),
+         log_sales = log(sales))
+
+# log-log linear model
+model <- lm(log_sales ~ log_price, data = milk)
+
+# estimate for elasticity
+elasticity <- coef(model)[2]
+
+# bootstrapping elasticity
+boot_elasticity <- do(1000) * {
+  sample <- resample(milk)
+  mod <- lm(log_sales ~ log_price, data = sample)
+  tibble(elasticity = coef(mod)[2])
+}
+
+# 95% CI for elasticity
+ci <- quantile(boot_elasticity$elasticity, c(0.025, 0.975))
+```
+
+1). I estimated the price elasticity to be -1.619 with a 95% confidence interval (-1.772, -1.466). I  estimated the price elasticity of demand by fitting a log-log linear model and using 1000 resampled bootstraps of the data:
+
+log(Q) = log(K) + βlog(P)
+
