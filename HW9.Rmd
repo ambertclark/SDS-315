@@ -1,0 +1,270 @@
+---
+title: "Homework 9"
+author: "Amber Clark - SDS 315 UT Austin"
+output:
+  html_document:
+      toc: true
+      toc_float: true
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(moderndive)
+```
+
+# **1. Question One**
+```{r echo=FALSE, message=FALSE}
+solder <- read.csv("solder.csv")
+
+# plot 1: opening size vs. skips
+
+ggplot(solder, aes(x = Opening, y = skips)) +
+  geom_boxplot(fill = "pink") + 
+  labs(title = "Skips by Solder Gun Opening Size",
+       x = "Opening Size",
+       y = "Number of Solder Skips") + theme_bw()
+
+# plot 2: thickness vs. skips
+
+ggplot(solder, aes(x = Solder, y = skips)) +
+  geom_boxplot(fill = "pink") + 
+  labs(title = "Skips by Solder Alloy Thickness",
+       x = "Thickness",
+       y = "Number of Solder Skips") + theme_bw()
+```
+
+Part A). 
+
+Plot 1: The box plot above shows the distribution of solder skips by gun opening size. Smaller openings is associated with more skips, while larger openings tend to have smaller number of solder skips.
+
+Plot 2: The box plot shown above shows that thicker solder tends to result in fewer skips than thin solder.
+
+Part B). 
+
+```{r echo=FALSE, message=FALSE}
+# convert variables to factors
+solder <- solder %>%
+  mutate(
+    Opening = factor(Opening, levels = c("L", "M","S")),
+    Solder = factor(Solder, levels = c("Thick", "Thin"))
+    
+  )
+
+# linear model w/ interaction
+model <- lm(skips ~ Opening * Solder, data = solder)
+
+reg1 <- get_regression_table(model)
+
+# model estimates and 95% CI
+coefs <- summary(model)$coefficients
+
+ci_bounds <- cbind(
+  Estimate = coefs[,1],
+  Std_Error = coefs[,2],
+  CI_Lower = coefs[,1] - 2 * coefs[,2],
+  CI_Upper = coefs[,1] + 2 * coefs[,2]
+)
+
+ci_table <- as.data.frame(ci_bounds)
+knitr::kable(ci_table, caption = "Regression Coefficients with 95% Confidence Intervals")
+```
+
+
+Part C).
+The intercept is the average number of skips for boards using a baseline of a large opening and thick solder and the average is around .39 skips
+
+
+OpeningM: Circuit boards made with a medium opening and thick solder had on average, 2.41 more skips than the large opening and thick solder.
+
+
+OpeningS: Circuit boards made with a small opening and thick solder had on average, 5.13 more skips than a large opening and thick solder.
+
+
+SolderThin: With the boards with large opening, the ones wih thin solder had on average, 2.28 more skips than the baseline.
+
+
+OpeningM:SolderThin: This interaction shows the effect of using a medium opening and thin solder and it shows on average, .74 less skips than what we expect by only adding both effects.
+
+
+OpeningS:SolderThin: This interaction shows the effect of using a small opening and thin solder and it shows that on average, 9.65 more skips than what we expect by adding individual effects of small opening and thin solder.
+
+Part D). I would recommend a combination of large opening size and thick solder in the manufacturing process. Based on the regression analysis, this combination yields the lowest average number of solder skips with around 0.39 skips per board, compared to the smaller openings or thinner solders which is linked statistically with a larger number of skips.
+
+# **2. Question Two**
+
+Part A).
+
+
+```{r echo=FALSE, message=FALSE}
+grocery <- read.csv("groceries.csv")
+
+# compute average price by store
+store_avg <- grocery %>%
+  group_by(Store) %>%
+  summarize(avg_price = mean(Price, na.rm = TRUE)) %>%
+  arrange(avg_price)
+
+# bar graph of avg price sold at each store
+ggplot(store_avg, aes(x = Store, y = avg_price)) +
+  geom_col(fill = "skyblue") +
+  coord_flip() +
+  labs(
+    title = "Average Price by Store",
+    x = "Store",
+    y = "Average Price"
+  ) + theme_update()
+```
+
+The bar graph shown above displays stores and their average product prices. The graph shows that stores like Whole Foods and Natural Grocers charge more on average, while stores such as Fiesta and Walmart charge less for their products on average. The price difference between all of the stores is approximately 2 dollars.
+
+Part B).
+
+
+
+```{r fig.height=9, fig.width=5, echo=FALSE, message=FALSE}
+
+
+# unique store-location ID
+grocery2 <- grocery %>% 
+  mutate(Unique_Store = paste(Store, `Zip.Code`))
+  
+# count unique stores in dataset
+product_counts <- grocery2 %>%
+  group_by(Product) %>%
+  summarize(Store_Count = n_distinct(Unique_Store)) %>%
+  arrange(Store_Count)
+
+ggplot(product_counts, aes(x = Product, y= Store_Count)) +
+  geom_col(fill = "skyblue") +
+  coord_flip() +
+  labs(
+    title = "Number of Stores Selling Products",
+    x = "Product",
+    y = "Number of Stores"
+  ) +
+  theme_update()
+  
+```
+
+Part C).
+```{r echo=FALSE, message=FALSE}
+
+# fit linear regression model
+model2 <- lm(Price ~ Product + Type, data = grocery)
+
+reg1 <- get_regression_table(model2)
+
+```
+Compared with ordinary grocery stores (like Albertsons, HEB, or Krogers), convenience stores charge somewhere between $0.41 and 0.92 dollars more for the same product. 
+
+Part D). 
+```{r echo=FALSE, message=FALSE}
+
+# fit linear regression model
+model_store <- lm(Price ~ Product + Store, data = grocery)
+
+reg2 <- get_regression_table(model_store)
+
+# extract two stores
+coefs <- coef(model_store)
+
+store_effects <- coefs[grep("Store", names(coefs))]
+
+sorted_store_effects <- sort(store_effects)
+
+sort_head <- head(sorted_store_effects, 2)
+
+sort_tail <- tail(sorted_store_effects, 2)
+
+```
+
+The two stores who seem to charge the highest prices when comparing the same product is Wheatsville Food Co-Op and Whole Foods. The two stores who seem to charge the lowest prices when comparing the same product is  Walmart and Kroger-Fresh Fare.
+
+Part E).
+```{r echo=FALSE, message=FALSE}
+
+# make sure HEB is baseline
+grocery$Store <- relevel(factor(grocery$Store), ref = "H-E-B ")
+
+# fit linear regression model
+model_store <- lm(Price ~ Product + Store, data = grocery)
+
+# extract coefficients for HEB and Central Market
+coefs <- coef(model_store)
+central_market_effect <- coefs["StoreCentral Market"]
+
+heb_effect <- coefs["(Intercept)"]
+central_market_effect <- coefs["StoreCentral Market"]
+
+# calculate difference
+price_diff <- round(central_market_effect, 2)
+
+```
+The Central Market charges about $0.07 more than H-E-B for the same product on average, while Whole Foods charges 0.36 cents more and Walmart charging .99 cents less. This suggets that Central Market charging significantly more than HEB isn't supported when comparing the same products as the difference is pretty small.
+
+Part F).
+
+
+```{r echo=FALSE, message=FALSE}
+# new variable
+grocery <- grocery %>%
+  mutate(Income10K = as.numeric(Income) / 10000)
+
+# delete NAs
+sd_income <- sd(grocery$Income10K, na.rm = TRUE)
+
+# standardize price and income10k
+grocery_std <- grocery %>%
+  select(Price, Income10K) %>%
+  drop_na() %>%
+  mutate(
+    Price_std = as.numeric(scale(Price)),
+    Income10K_std = as.numeric(scale(Income10K))
+  )
+
+# fit standardized regression
+model_std <- lm(Price_std ~ Income10K_std, data = grocery_std)
+
+reg3 <- get_regression_table(model_std)
+
+
+# extract coefficients
+income_coef <- coef(model_std)["Income10K_std"]
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+# fit linear regression model
+model_income <- lm(Price ~ Product + Income10K, data = grocery)
+
+# extract row with Income10k
+summary_income<- summary(model_income)$coefficients[grep("Income10K", rownames(summary(model_income)$coefficients)), ]
+
+```
+
+1). Based on the negative coefficient of -0.014, consumers in poorer ZIP codes tend to pay slightly more for the same product for every 10,000 decrease in income, meaning that the expected price increases by about 1.4 cents. The p-value is 0.144 meaning that the relationship is not statistically significant, suggesting that we cannot conclude confident that the difference is meaningful.
+
+2). A one-standard deviation increase in the income of a ZIP code seems to be associated with a 0.045 standard-deviation decrease in the price that consumers in that ZIP code expect to pay for the same product.
+
+
+# **3. Question Three**
+
+A). This is true. Higher minority percentage is significantly associated with more FAIR polices per 100 housing as shown in Figure A1 because the p-value is 0 (illustrating statistical significance) and the coefficient is positive.
+
+B). This is undecidable because there is no regression model with an interaction between minority and age, so we cannot determine if one exists. While there is a weak trend between minority percentage and housing age (R^2 = 0.06 and p= 0.125) in Model B, there is no model that includes an interaction term between minority and age for FAIR policies, so adding one would help me answer the question in the future.
+
+C). This is false because the interaction shown in Figure C1 states that the interaction "minority:fire_riskLow" yields a p-value of 0.839 and a small interaction term (-0.001) meaning that it is not statistically significant, and there is no evidence that the interaction differs by fire level risk, even though there is a visual difference between the slopes.
+
+D). This is false because in Model D1, the p-value was approximately 0 and then after adding income into equation, the p-value is 0.002, meaning that it remains statistically significant even after controlling for income. This suggests that income does not fully explain away all of the association.
+
+E). This is true because in Model E, even when we controlled for income, age, and fire risk, the minority percentage has a p-value of 0.006 meaning that it is still significantly associated with higher FAIR policies per 100 housing units.
+
+
+
